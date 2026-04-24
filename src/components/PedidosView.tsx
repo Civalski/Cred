@@ -175,45 +175,50 @@ export function PedidosView({ clientes, pedidos }: Props) {
             Registre pedidos; o vínculo com um cliente é opcional
           </p>
         </div>
-        {clientes.length > 0 && (
-          <div className="clientes-top-bar">
-            <input
-              type="search"
-              className="clientes-search"
-              placeholder="Buscar por título, detalhes, cliente ou valor"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              spellCheck={false}
-              autoComplete="off"
-              aria-label="Buscar pedidos"
-            />
-            <button
-              type="button"
-              className="clientes-nuevo-btn"
-              onClick={openNovo}
-            >
-              + Novo pedido
-            </button>
-          </div>
-        )}
+        <div className="clientes-top-bar">
+          <input
+            type="search"
+            className="clientes-search"
+            placeholder="Buscar por título, detalhes, cliente ou valor"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            spellCheck={false}
+            autoComplete="off"
+            aria-label="Buscar pedidos"
+            disabled={pedidos.length === 0}
+            title={
+              pedidos.length === 0
+                ? "A busca ficará ativa após o primeiro pedido"
+                : undefined
+            }
+          />
+          <button
+            type="button"
+            className="clientes-nuevo-btn"
+            onClick={openNovo}
+          >
+            + Novo pedido
+          </button>
+        </div>
       </header>
 
-      {clientes.length === 0 ? (
+      {pedidos.length === 0 ? (
         <div className="clientes-empty">
           <p className="clientes-empty-line">
-            Você precisa de ao menos um cliente para criar pedidos.{" "}
-            <Link href="/clientes" className="pedidos-inline-link">
-              Ir para Clientes
-            </Link>{" "}
-            e cadastre o primeiro.
-          </p>
-        </div>
-      ) : pedidos.length === 0 ? (
-        <div className="clientes-empty">
-          <p className="clientes-empty-line">
-            Ainda não há pedidos registrados. Clique em{" "}
-            <strong>+ Novo pedido</strong> e preencha título, valores e,
-            se quiser, vincule um cliente e detalhes.
+            Ainda não há pedidos registrados. Use <strong>+ Novo pedido</strong>{" "}
+            e informe título e valores. O vínculo com um cliente e os detalhes
+            extras são opcionais
+            {clientes.length === 0 ? (
+              <>
+                ; para vincular alguém, cadastre antes em{" "}
+                <Link href="/clientes" className="pedidos-inline-link">
+                  Clientes
+                </Link>
+                .
+              </>
+            ) : (
+              "."
+            )}
           </p>
         </div>
       ) : filtrados.length === 0 ? (
@@ -399,7 +404,7 @@ export function PedidosView({ clientes, pedidos }: Props) {
         </div>
       )}
 
-      {open && clientes.length > 0 && (
+      {open && (
         <div className="clientes-drawer-root">
           <button
             type="button"

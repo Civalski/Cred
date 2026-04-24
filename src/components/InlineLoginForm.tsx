@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { TurnstileField } from "@/components/TurnstileField";
 
 type View = "login" | "register";
@@ -31,6 +32,7 @@ export function InlineLoginForm({
   const [regSenhaConfirm, setRegSenhaConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [enteringAfterRegister, setEnteringAfterRegister] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const onTurnstileToken = useCallback((t: string | null) => {
     setTurnstileToken(t);
@@ -92,6 +94,7 @@ export function InlineLoginForm({
       return;
     }
     setLoading(true);
+    let registeredOk = false;
     try {
       const res = await fetch("/api/users", {
         method: "POST",
@@ -117,13 +120,15 @@ export function InlineLoginForm({
         setError(first ?? data.error ?? "Não foi possível cadastrar");
         return;
       }
+      registeredOk = true;
+      setEnteringAfterRegister(true);
       setRegLogin("");
       setRegSenha("");
       setRegSenhaConfirm("");
-      router.replace("/clientes?conta=nova");
+      router.replace("/clientes");
       router.refresh();
     } finally {
-      setLoading(false);
+      if (!registeredOk) setLoading(false);
     }
   }
 
@@ -150,6 +155,7 @@ export function InlineLoginForm({
       : null;
 
   return (
+    <>
     <section
       className={
         crm
@@ -391,5 +397,19 @@ export function InlineLoginForm({
         )}
       </div>
     </section>
+    {enteringAfterRegister &&
+      createPortal(
+        <div
+          className="auth-entering-overlay"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="auth-entering-overlay__spinner" aria-hidden="true" />
+          <p className="auth-entering-overlay__text">Entrando no sistema…</p>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }

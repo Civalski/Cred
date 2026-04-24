@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PedidoClienteOption, PedidoRow } from "@/lib/pedido-row";
 
@@ -164,10 +165,6 @@ export function PedidosCadastroForm({
     }
   }
 
-  if (clientes.length === 0) {
-    return null;
-  }
-
   return (
     <form
       className="home-form clientes-form pedidos-form"
@@ -181,9 +178,19 @@ export function PedidosCadastroForm({
       )}
 
       <div className="field home-field pedidos-field-cliente">
-        <label id={`${listId}-label`} htmlFor={pf("cliente-busca")}>
+        <label id={`${listId}-label`} htmlFor={clientes.length > 0 ? pf("cliente-busca") : undefined}>
           Cliente
         </label>
+        {clientes.length === 0 ? (
+          <p className="pedidos-field-hint" id={`${listId}-hint`}>
+            Nenhum cliente cadastrado. Você pode salvar o pedido sem vínculo.{" "}
+            <Link href="/clientes" className="pedidos-inline-link">
+              Cadastre clientes
+            </Link>{" "}
+            quando quiser associar depois.
+          </p>
+        ) : (
+          <>
         <p className="pedidos-field-hint" id={`${listId}-hint`}>
           Opcional: busque pelo nome e clique no cliente para vincular ao pedido
         </p>
@@ -254,6 +261,8 @@ export function PedidosCadastroForm({
               ))
             )}
           </ul>
+        )}
+          </>
         )}
       </div>
 

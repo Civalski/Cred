@@ -33,17 +33,11 @@ function previewRg(rg: string) {
 
 type Props = {
   rows: ClienteRow[];
-  openDrawerOnMount?: boolean;
-  welcomeMessage?: boolean;
 };
 
-export function ClientesView({
-  rows,
-  openDrawerOnMount = false,
-  welcomeMessage = false,
-}: Props) {
+export function ClientesView({ rows }: Props) {
   const router = useRouter();
-  const [open, setOpen] = useState(openDrawerOnMount);
+  const [open, setOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<ClienteRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [clientToDelete, setClientToDelete] = useState<ClienteRow | null>(null);
@@ -175,13 +169,6 @@ export function ClientesView({
 
   return (
     <div className="clientes-shell">
-      {welcomeMessage && (
-        <p className="clientes-welcome form-success" role="status">
-          Conta criada com sucesso. Use <strong>+ Novo cliente</strong> acima
-          para incluir o primeiro.
-        </p>
-      )}
-
       <header className="clientes-hero">
         <div className="clientes-hero-text">
           <h1 className="clientes-toolbar-title">Clientes</h1>

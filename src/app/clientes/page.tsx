@@ -5,18 +5,11 @@ import { getDb } from "@/db";
 import { clients } from "@/db/schema";
 import { ClientesView, type ClienteRow } from "@/components/ClientesView";
 
-type PageProps = {
-  searchParams: Promise<{ conta?: string }>;
-};
-
-export default async function ClientesPage({ searchParams }: PageProps) {
+export default async function ClientesPage() {
   const userId = await getSessionUserId();
   if (!userId) {
     redirect("/");
   }
-
-  const sp = await searchParams;
-  const showContaNova = sp.conta === "nova";
 
   const db = await getDb();
   const rows = await db
@@ -43,12 +36,7 @@ export default async function ClientesPage({ searchParams }: PageProps) {
 
   return (
     <div className="clientes-page clientes-page--simple">
-      <ClientesView
-        key={showContaNova ? "conta-nova" : "default"}
-        rows={serializable}
-        openDrawerOnMount={showContaNova}
-        welcomeMessage={showContaNova}
-      />
+      <ClientesView rows={serializable} />
     </div>
   );
 }

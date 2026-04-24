@@ -837,10 +837,40 @@ a {
   margin: 0 auto;
 }
 
-.clientes-welcome {
-  margin-bottom: 1.25rem;
-  font-size: 0.9rem;
-  max-width: 40rem;
+.auth-entering-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: color-mix(in srgb, var(--background) 82%, black);
+  backdrop-filter: blur(8px);
+}
+
+.auth-entering-overlay__spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 3px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: auth-entering-spin 0.75s linear infinite;
+}
+
+.auth-entering-overlay__text {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+@keyframes auth-entering-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .clientes-hero {
