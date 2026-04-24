@@ -4,15 +4,19 @@
  * drizzle-kit push ou o push usou outro host.
  */
 const path = require("path");
+const { pathToFileURL } = require("url");
 require("dotenv").config({ path: path.join(__dirname, "../.env.local"), quiet: true });
 require("dotenv").config({ path: path.join(__dirname, "../.env"), quiet: true });
 const postgres = require("postgres");
 
 async function main() {
-  const url = process.env.DATABASE_URL;
+  const { getPostgresUrlFromEnv } = await import(
+    pathToFileURL(path.join(__dirname, "resolve-pglite.mjs")).href,
+  );
+  const url = getPostgresUrlFromEnv();
   if (!url) {
     console.error(
-      "Falta DATABASE_URL. Defina em .env.local (a mesma que a aplicação usa).",
+      "Falta URL de Postgres (DATABASE_URL ou STORAGE_* no Vercel). Defina em .env.local como na app.",
     );
     process.exit(1);
   }
@@ -20,7 +24,7 @@ async function main() {
   try {
     await sql`select 1`;
     const m = url.match(/@([^/?]+)/);
-    console.log("Conectando com DATABASE_URL" + (m ? ` (host: ${m[1]})` : "…"));
+    console.log("Conectando ao Postgres" + (m ? ` (host: ${m[1]})` : "…"));
 
     await sql.unsafe(`
       DO $$

@@ -13,7 +13,7 @@ import { execSync } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
-import { pgliteModeFromEnv } from "./resolve-pglite.mjs";
+import { pgliteModeFromEnv, hasPostgresUrlInEnv } from "./resolve-pglite.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -28,9 +28,9 @@ if (process.env.SKIP_DB_SYNC === "1" || process.env.SKIP_MIGRATIONS === "1") {
 
 const pglite = pgliteModeFromEnv();
 
-if (!pglite && !process.env.DATABASE_URL) {
+if (!pglite && !hasPostgresUrlInEnv()) {
   console.error(
-    "sync-db: defina DATABASE_URL no .env.local (a mesma URL que o Next usa), ou deixe sem DATABASE_URL em desenvolvimento para usar PGlite, ou USE_PGLITE=1.",
+    "sync-db: defina DATABASE_URL (ou STORAGE_DATABASE_URL no Vercel) no .env.local, ou deixe sem URL em dev para PGlite, ou USE_PGLITE=1.",
   );
   process.exit(1);
 }

@@ -5,7 +5,7 @@ require("dotenv").config({ path: path.join(__dirname, "../.env"), quiet: true })
 const postgres = require("postgres");
 
 async function main() {
-  const { pgliteModeFromEnv } = await import(
+  const { pgliteModeFromEnv, getPostgresUrlFromEnv } = await import(
     pathToFileURL(path.join(__dirname, "resolve-pglite.mjs")).href,
   );
   if (pgliteModeFromEnv()) {
@@ -14,10 +14,10 @@ async function main() {
     );
     process.exit(0);
   }
-  const url = process.env.DATABASE_URL;
+  const url = getPostgresUrlFromEnv();
   if (!url) {
     console.error(
-      "Falha: DATABASE_URL não está definida. Crie .env.local a partir de .env.example e defina DATABASE_URL (ou defina no Vercel).",
+      "Falha: nenhuma URL de Postgres (DATABASE_URL ou STORAGE_* no Vercel). Veja .env.example.",
     );
     process.exit(1);
   }

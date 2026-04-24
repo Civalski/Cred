@@ -10,6 +10,7 @@ import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { config } from "dotenv";
+import { getPostgresUrlFromEnv } from "./resolve-pglite.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -17,9 +18,9 @@ const root = path.join(__dirname, "..");
 config({ path: path.join(root, ".env.local"), quiet: true });
 config({ path: path.join(root, ".env"), quiet: true });
 
-const url = process.env.DATABASE_URL;
+const url = getPostgresUrlFromEnv();
 if (!url) {
-  console.error("Falta DATABASE_URL.");
+  console.error("Falta DATABASE_URL (ou STORAGE_DATABASE_URL no Vercel).");
   process.exit(1);
 }
 

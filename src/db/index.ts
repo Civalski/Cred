@@ -5,6 +5,7 @@ import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js/session";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite/session";
 import postgres from "postgres";
 import { pgliteModeFromEnv } from "@/lib/pglite-mode";
+import { getAppPostgresUrl } from "@/lib/postgres-url";
 import * as schema from "./schema";
 
 /** Mesma superfície de API para Neon (postgres-js) e PGlite. */
@@ -39,10 +40,10 @@ export async function getDb(): Promise<AppDb> {
     return globalForDb.pgliteDbPromise;
   }
 
-  const url = process.env.DATABASE_URL;
+  const url = getAppPostgresUrl();
   if (!url) {
     throw new Error(
-      "DATABASE_URL is not set. In development, omit it to use embedded PGlite, or set USE_PGLITE=0 and provide DATABASE_URL for a remote Postgres.",
+      "No Postgres URL: set DATABASE_URL (or Vercel Neon STORAGE_DATABASE_URL), or in development omit DATABASE_URL to use embedded PGlite.",
     );
   }
   if (!globalForDb.pgDb) {
