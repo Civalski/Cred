@@ -6,15 +6,40 @@ import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { loginSchema } from "@/lib/schemas";
 import { setSessionCookie, signSessionToken } from "@/lib/auth";
+import {
+  getClientIp,
+  rateLimitedResponse,
+  RATE_AUTH_LOGIN,
+  takeRateLimit,
+} from "@/lib/rate-limit";
 import { toPublicUser } from "@/lib/user-public";
+import { isTurnstileEnforced, verifyTurnstileResponse } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const limited = takeRateLimit(
+    `auth:login:${ip}`,
+    RATE_AUTH_LOGIN.max,
+    RATE_AUTH_LOGIN.windowMs,
+  );
+  if (!limited.ok) {
+    return rateLimitedResponse(limited.retryAfterSec);
+  }
   try {
     const body = await request.json();
     const data = loginSchema.parse(body);
-    const db = getDb();
+    if (isTurnstileEnforced()) {
+      const ok = await verifyTurnstileResponse(data.turnstileToken, ip);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "Verificação de segurança inválida ou expirada. Tente de novo." },
+          { status: 400 },
+        );
+      }
+    }
+    const db = await getDb();
     const [user] = await db
       .select()
       .from(users)
@@ -33,7 +58,7 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
-    const token = await signSessionToken(user.id);
+    const token = await signSessionToken(user.id, user.sessionVersion);
     await setSessionCookie(token);
     return NextResponse.json({ user: toPublicUser(user) });
   } catch (e) {

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { TurnstileField } from "@/components/TurnstileField";
 
 type View = "login" | "register";
 
@@ -11,12 +12,15 @@ type Props = {
   layout?: "default" | "crm";
   /** Definido pela URL `?cadastro=1` na home */
   initialView?: View;
+  /** Só preenchido em produção (Vercel) quando Turnstile está ativo. */
+  turnstileSiteKey?: string | null;
 };
 
 export function InlineLoginForm({
   showRegisteredMessage = false,
   layout = "default",
   initialView = "login",
+  turnstileSiteKey = null,
 }: Props) {
   const router = useRouter();
   const [view, setView] = useState<View>(initialView);
@@ -27,7 +31,13 @@ export function InlineLoginForm({
   const [regSenhaConfirm, setRegSenhaConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const onTurnstileToken = useCallback((t: string | null) => {
+    setTurnstileToken(t);
+  }, []);
   const crm = layout === "crm";
+  const needTurnstile = Boolean(turnstileSiteKey);
+  const turnstileOk = !needTurnstile || Boolean(turnstileToken);
 
   useEffect(() => {
     setView(initialView);
@@ -42,12 +52,22 @@ export function InlineLoginForm({
   async function onLoginSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (needTurnstile && !turnstileToken) {
+      setError("Complete a verificação de segurança abaixo.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login, senha }),
+        body: JSON.stringify({
+          login,
+          senha,
+          ...(needTurnstile && turnstileToken
+            ? { turnstileToken }
+            : {}),
+        }),
         credentials: "include",
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -57,8 +77,8 @@ export function InlineLoginForm({
         setError(data.error ?? "Não foi possível entrar");
         return;
       }
+      router.replace("/clientes");
       router.refresh();
-      router.replace("/");
     } finally {
       setLoading(false);
     }
@@ -67,6 +87,10 @@ export function InlineLoginForm({
   async function onRegisterSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (needTurnstile && !turnstileToken) {
+      setError("Complete a verificação de segurança abaixo.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/users", {
@@ -76,6 +100,9 @@ export function InlineLoginForm({
           login: regLogin,
           senha: regSenha,
           senhaConfirmacao: regSenhaConfirm,
+          ...(needTurnstile && turnstileToken
+            ? { turnstileToken }
+            : {}),
         }),
         credentials: "include",
       });
@@ -93,8 +120,7 @@ export function InlineLoginForm({
       setRegLogin("");
       setRegSenha("");
       setRegSenhaConfirm("");
-      setView("login");
-      router.replace("/?registered=1#acesso");
+      router.replace("/clientes?conta=nova");
       router.refresh();
     } finally {
       setLoading(false);
@@ -208,6 +234,18 @@ export function InlineLoginForm({
                 />
               </div>
             )}
+            {turnstileSiteKey && (
+              <div
+                className="field home-field home-field--turnstile"
+                aria-label="Verificação de segurança"
+              >
+                <TurnstileField
+                  key={`login-${view}`}
+                  siteKey={turnstileSiteKey}
+                  onToken={onTurnstileToken}
+                />
+              </div>
+            )}
             <button
               className={
                 crm
@@ -215,7 +253,7 @@ export function InlineLoginForm({
                   : "btn home-submit"
               }
               type="submit"
-              disabled={loading}
+              disabled={loading || !turnstileOk}
             >
               {loading ? "Entrando…" : "Entrar"}
             </button>
@@ -274,6 +312,18 @@ export function InlineLoginForm({
                 caractere especial.
               </p>
             </div>
+            {turnstileSiteKey && (
+              <div
+                className="field home-field home-field--turnstile"
+                aria-label="Verificação de segurança"
+              >
+                <TurnstileField
+                  key={`register-${view}`}
+                  siteKey={turnstileSiteKey}
+                  onToken={onTurnstileToken}
+                />
+              </div>
+            )}
             <button
               className={
                 crm
@@ -281,7 +331,7 @@ export function InlineLoginForm({
                   : "btn home-submit"
               }
               type="submit"
-              disabled={loading}
+              disabled={loading || !turnstileOk}
             >
               {loading ? "Cadastrando…" : "Criar conta"}
             </button>

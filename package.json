@@ -3,15 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/sync-db.mjs && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
+    "db:sync": "node scripts/sync-db.mjs",
+    "db:migrate": "node scripts/sync-db.mjs",
+    "db:migrate:files": "node scripts/apply-migration-files.mjs",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:push:pglite": "drizzle-kit push --config=drizzle.pglite.config.ts --force",
+    "db:studio": "drizzle-kit studio",
+    "db:test": "node scripts/test-db.cjs",
+    "db:ensure-orders": "node scripts/ensure-orders-columns.cjs"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.4.4",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.2",

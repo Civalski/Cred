@@ -1,14 +1,9 @@
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell } from "@/components/AppShell";
 
 export default function RegistroLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <>
-      <AppHeader />
-      {children}
-    </>
-  );
+  return <AppShell>{children}</AppShell>;
 }

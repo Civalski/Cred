@@ -1,16 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getSessionUserId } from "@/lib/auth";
-import { getDb } from "@/db";
-import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { AppHeader } from "@/components/AppHeader";
+import { getTurnstileSiteKeyForClient } from "@/lib/turnstile";
 import { InlineLoginForm } from "@/components/InlineLoginForm";
-
-function firstName(nome: string) {
-  const n = nome.trim();
-  if (!n) return null;
-  return n.split(/\s+/)[0] ?? n;
-}
 
 type PageProps = {
   searchParams: Promise<{ registered?: string; cadastro?: string }>;
@@ -22,43 +14,11 @@ export default async function Home({ searchParams }: PageProps) {
   const authView = sp.cadastro === "1" ? "register" as const : "login" as const;
 
   const userId = await getSessionUserId();
-  let displayName: string | null = null;
   if (userId) {
-    const db = getDb();
-    const [u] = await db
-      .select({ nome: users.nome, login: users.login })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-    displayName = u?.nome ?? u?.login ?? null;
+    redirect("/clientes");
   }
 
-  const greet = displayName ? firstName(displayName) ?? displayName : null;
-
-  if (greet) {
-    return (
-      <>
-        <AppHeader />
-        <div className="landing landing--logged">
-        <section className="landing-hero landing-hero--logged">
-          <p className="landing-kicker">Área do cliente</p>
-          <h1 className="landing-title">Bom te ver, {greet}</h1>
-          <p className="landing-lead">
-            Sua sessão está ativa. Quando houver pedidos e alertas, eles
-            aparecerão aqui.
-          </p>
-          <div className="landing-panel">
-            <p className="landing-panel-title">Em breve</p>
-            <p className="landing-panel-text">
-              Você poderá acompanhar tudo em um só lugar. Use{" "}
-              <strong>Sair</strong> no canto superior quando terminar.
-            </p>
-          </div>
-        </section>
-      </div>
-      </>
-    );
-  }
+  const turnstileSiteKey = getTurnstileSiteKeyForClient();
 
   return (
     <div className="split-crm">
@@ -88,6 +48,7 @@ export default async function Home({ searchParams }: PageProps) {
             showRegisteredMessage={showRegistered}
             layout="crm"
             initialView={authView}
+            turnstileSiteKey={turnstileSiteKey}
           />
         </div>
         <div className="split-crm__foot">

@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { ZodError } from "zod";
-import { z } from "zod";
 import { getDb } from "@/db";
-import { orders } from "@/db/schema";
+import { clients, orders } from "@/db/schema";
 import { createOrderSchema } from "@/lib/schemas";
 import { getSessionUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
-
-const listQuerySchema = z.object({
-  userId: z.string().uuid().optional(),
-});
 
 export async function POST(request: Request) {
   const sessionUserId = await getSessionUserId();
@@ -21,12 +16,37 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = createOrderSchema.parse(body);
-    const db = getDb();
+    const db = await getDb();
+    let clientIdParaPedido: string | null = null;
+    if (data.clientId) {
+      const [clientRow] = await db
+        .select({ id: clients.id })
+        .from(clients)
+        .where(
+          and(
+            eq(clients.id, data.clientId),
+            eq(clients.userId, sessionUserId),
+            isNull(clients.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (!clientRow) {
+        return NextResponse.json(
+          { error: "Cliente não encontrado ou não pertence à sua conta" },
+          { status: 404 },
+        );
+      }
+      clientIdParaPedido = data.clientId;
+    }
     const [created] = await db
       .insert(orders)
       .values({
         userId: sessionUserId,
+        clientId: clientIdParaPedido,
+        titulo: data.titulo.trim(),
         descricao: data.descricao,
+        preco: data.preco,
+        quantidade: data.quantidade,
       })
       .returning();
     return NextResponse.json(created, { status: 201 });
@@ -41,30 +61,27 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   const sessionUserId = await getSessionUserId();
   if (!sessionUserId) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
-  const url = new URL(request.url);
-  let userIdFilter: string | undefined;
-  try {
-    const q = listQuerySchema.parse({
-      userId: url.searchParams.get("userId") ?? undefined,
-    });
-    userIdFilter = q.userId;
-  } catch (e) {
-    if (e instanceof ZodError) {
-      return NextResponse.json(
-        { error: "Query inválida", details: e.flatten() },
-        { status: 400 },
-      );
-    }
-    throw e;
-  }
-  const db = getDb();
-  const rows = userIdFilter
-    ? await db.select().from(orders).where(eq(orders.userId, userIdFilter))
-    : await db.select().from(orders);
+  const db = await getDb();
+  const rows = await db
+    .select({
+      id: orders.id,
+      userId: orders.userId,
+      clientId: orders.clientId,
+      titulo: orders.titulo,
+      descricao: orders.descricao,
+      preco: orders.preco,
+      quantidade: orders.quantidade,
+      createdAt: orders.createdAt,
+      clientNome: clients.nome,
+    })
+    .from(orders)
+    .leftJoin(clients, eq(orders.clientId, clients.id))
+    .where(eq(orders.userId, sessionUserId))
+    .orderBy(desc(orders.createdAt));
   return NextResponse.json(rows);
 }

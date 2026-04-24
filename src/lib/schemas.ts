@@ -23,6 +23,7 @@ export const registerUserSchema = z
     login: z.string().min(2, "Login deve ter ao menos 2 caracteres"),
     senha: strongPasswordSchema,
     senhaConfirmacao: z.string().min(1, "Confirme a senha"),
+    turnstileToken: z.string().min(1).optional(),
   })
   .refine((d) => d.senha === d.senhaConfirmacao, {
     message: "As senhas não coincidem",
@@ -32,28 +33,75 @@ export const registerUserSchema = z
 export const loginSchema = z.object({
   login: z.string().min(1, "Login é obrigatório"),
   senha: z.string().min(1, "Senha é obrigatória"),
+  turnstileToken: z.string().min(1).optional(),
 });
 
 export const patchUserSchema = z
   .object({
-    cpf: cpfSchema.optional(),
-    rg: z.string().min(1).optional(),
-    nome: z.string().min(1).optional(),
-    idade: z.coerce.number().int().min(0).max(130).optional(),
-    email: z.string().email().optional(),
     login: z.string().min(2).optional(),
     senha: strongPasswordSchema.optional(),
   })
-  .refine((data) => Object.values(data).some((v) => v !== undefined), {
-    message: "Informe ao menos um campo para atualizar",
+  .refine(
+    (data) => data.login !== undefined || data.senha !== undefined,
+    { message: "Informe ao menos um campo para atualizar" },
+  );
+
+/** Senha definida pelo admin para outro usuário (mesmas regras de força do cadastro). */
+export const adminSetUserPasswordSchema = z
+  .object({
+    senha: strongPasswordSchema,
+    senhaConfirmacao: z.string().min(1, "Confirme a senha"),
+  })
+  .refine((d) => d.senha === d.senhaConfirmacao, {
+    message: "As senhas não coincidem",
+    path: ["senhaConfirmacao"],
   });
 
 export const createOrderSchema = z.object({
-  descricao: z.string().min(1, "Descrição é obrigatória"),
+  clientId: z.preprocess(
+    (val) =>
+      val === "" || val === null || val === undefined ? undefined : val,
+    z.string().uuid("Cliente inválido").optional(),
+  ),
+  titulo: z
+    .string()
+    .min(1, "Título é obrigatório")
+    .max(200, "Título muito longo"),
+  descricao: z
+    .string()
+    .max(4000, "Detalhes muito longos")
+    .optional()
+    .transform((s) => (typeof s === "string" ? s.trim() : "")),
+  preco: z.coerce
+    .number({ error: "Preço inválido" })
+    .min(0, "O preço não pode ser negativo"),
+  quantidade: z.coerce
+    .number({ error: "Quantidade inválida" })
+    .int("Quantidade deve ser um número inteiro")
+    .min(1, "A quantidade mínima é 1"),
 });
+
+/** Corpo de PATCH em `/api/orders/[id]` (mesma forma que criação). */
+export const updateOrderSchema = createOrderSchema;
+
+export const createClientSchema = z.object({
+  cpf: cpfSchema,
+  rg: z.string().min(1, "RG é obrigatório"),
+  nome: z.string().min(1, "Nome é obrigatório"),
+  idade: z.coerce
+    .number({ error: "Idade é obrigatória" })
+    .int()
+    .min(0, "Idade inválida")
+    .max(130, "Idade inválida"),
+  email: z.string().email("E-mail inválido"),
+});
+
+export const updateClientSchema = createClientSchema;
 
 export const deleteUserModeSchema = z.enum(["soft", "hard"]).optional();
 
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PatchUserInput = z.infer<typeof patchUserSchema>;
+export type CreateClientInput = z.infer<typeof createClientSchema>;
+export type UpdateClientInput = z.infer<typeof updateClientSchema>;

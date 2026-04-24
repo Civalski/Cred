@@ -1,22 +1,44 @@
 import { NextResponse } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { ZodError } from "zod";
 import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { patchUserSchema } from "@/lib/schemas";
-import { getSessionUserId } from "@/lib/auth";
+import {
+  getSessionUserId,
+  setSessionCookie,
+  signSessionToken,
+  clearSessionCookie,
+} from "@/lib/auth";
 import { toPublicUser } from "@/lib/user-public";
 
 export const runtime = "nodejs";
 
 function isUniqueViolation(e: unknown): boolean {
-  return (
-    typeof e === "object" &&
-    e !== null &&
-    "code" in e &&
-    (e as { code: string }).code === "23505"
-  );
+  let current: unknown = e;
+  for (let i = 0; i < 6 && current; i++) {
+    if (
+      typeof current === "object" &&
+      current !== null &&
+      "code" in current &&
+      (current as { code: string }).code === "23505"
+    ) {
+      return true;
+    }
+    if (
+      typeof current === "object" &&
+      current !== null &&
+      "cause" in current &&
+      (current as { cause: unknown }).cause !== undefined
+    ) {
+      current = (current as { cause: unknown }).cause;
+    } else {
+      break;
+    }
+  }
+  return false;
 }
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -33,25 +55,17 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const body = await request.json();
     const data = patchUserSchema.parse(body);
-    const db = getDb();
+    const db = await getDb();
     const updatePayload: Partial<{
-      cpf: string;
-      rg: string;
-      nome: string;
-      idade: number;
-      email: string;
       login: string;
       passwordHash: string;
       updatedAt: Date;
+      sessionVersion: SQL;
     }> = { updatedAt: new Date() };
-    if (data.cpf !== undefined) updatePayload.cpf = data.cpf;
-    if (data.rg !== undefined) updatePayload.rg = data.rg;
-    if (data.nome !== undefined) updatePayload.nome = data.nome;
-    if (data.idade !== undefined) updatePayload.idade = data.idade;
-    if (data.email !== undefined) updatePayload.email = data.email.toLowerCase();
     if (data.login !== undefined) updatePayload.login = data.login;
     if (data.senha !== undefined) {
       updatePayload.passwordHash = await bcrypt.hash(data.senha, 10);
+      updatePayload.sessionVersion = sql`${users.sessionVersion} + 1`;
     }
     const [updated] = await db
       .update(users)
@@ -60,6 +74,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       .returning();
     if (!updated) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
+    }
+    if (data.senha !== undefined) {
+      const token = await signSessionToken(updated.id, updated.sessionVersion);
+      await setSessionCookie(token);
     }
     return NextResponse.json(toPublicUser(updated));
   } catch (e) {
@@ -71,7 +89,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
     if (isUniqueViolation(e)) {
       return NextResponse.json(
-        { error: "CPF, e-mail ou login já cadastrado" },
+        { error: "Este login já está em uso" },
         { status: 409 },
       );
     }
@@ -96,8 +114,8 @@ export async function DELETE(request: Request, context: RouteContext) {
       { status: 400 },
     );
   }
-  const db = getDb();
-  if (mode === "soft") {
+  const db = await getDb();
+    if (mode === "soft") {
     const [updated] = await db
       .update(users)
       .set({ deletedAt: new Date(), updatedAt: new Date() })
@@ -106,6 +124,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!updated) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
+    await clearSessionCookie();
     return NextResponse.json({ ok: true, mode: "soft" });
   }
   const [deleted] = await db
@@ -115,5 +134,6 @@ export async function DELETE(request: Request, context: RouteContext) {
   if (!deleted) {
     return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
   }
+  await clearSessionCookie();
   return NextResponse.json({ ok: true, mode: "hard" });
 }

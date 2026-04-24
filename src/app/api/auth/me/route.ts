@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { getSessionUserId } from "@/lib/auth";
@@ -12,11 +12,11 @@ export async function GET() {
   if (!userId) {
     return NextResponse.json({ user: null });
   }
-  const db = getDb();
+  const db = await getDb();
   const [user] = await db
     .select()
     .from(users)
-    .where(eq(users.id, userId))
+    .where(and(eq(users.id, userId), isNull(users.deletedAt)))
     .limit(1);
   if (!user) {
     return NextResponse.json({ user: null });
